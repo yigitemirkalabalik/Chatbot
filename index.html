@@ -804,7 +804,7 @@ function detectMode(text, refs) {
 
 // ── GENERATE (Imagen 4 — Gemini API) ─────────────────────────
 async function doGenerate(text, refs) {
-  if (!hfKey) throw new Error('Görsel üretmek için Hugging Face token gerekli. Sol menüden ekle → huggingface.co/settings/tokens');
+
 
   // 1. Türkçe→İngilizce çevir ve prompt genişlet
   const englishPrompt = await geminiTranslateAndEnhance(text, refs);
@@ -856,38 +856,42 @@ async function geminiTranslateAndEnhance(text, refs) {
 }
 
 async function imagenGenerate(prompt) {
-  if (!hfKey) throw new Error('Görsel üretmek için Hugging Face token gerekli. Sol menüden ekle → huggingface.co/settings/tokens');
+  if (!geminiKey) throw new Error('Görsel üretmek için Gemini API anahtarı gerekli (sol menü → Gemini API).');
 
-  // HF Inference Providers API — CORS destekli, ücretsiz
-  const res = await fetch('https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${hfKey}`,
-      'Content-Type': 'application/json',
-      'x-use-cache': 'false'
-    },
-    body: JSON.stringify({
-      inputs: prompt,
-      parameters: { width: 1024, height: 576, num_inference_steps: 4 }
-    })
-  });
+  // Gemini görsel üretim modelleri — sırayla dene
+  const models = [
+    'gemini-2.5-flash-image',
+    'gemini-3.1-flash-image-preview',
+    'gemini-3-pro-image-preview',
+  ];
 
-  if (!res.ok) {
-    const text = await res.text();
-    let msg = `HF ${res.status}`;
-    try { const j = JSON.parse(text); msg = j.error || j.message || msg; } catch(e) {}
-    // 503 = model soğuk başlatılıyor
-    if (res.status === 503) throw new Error('Model yükleniyor, 30 saniye bekleyip tekrar dene.');
-    throw new Error('HF Hata: ' + msg);
+  for (const model of models) {
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
+        })
+      });
+
+      const ct = res.headers.get('content-type') || '';
+      if (!ct.includes('json')) { console.warn(model, '404/HTML yanıt'); continue; }
+
+      const data = await res.json();
+      if (data.error) { console.warn(model, data.error.message); continue; }
+
+      const parts = data.candidates?.[0]?.content?.parts || [];
+      const imgPart = parts.find(p => p.inlineData?.mimeType?.startsWith('image/'));
+      if (!imgPart) { console.warn(model, 'görsel part yok'); continue; }
+
+      console.log('✓ Görsel modeli:', model);
+      return `data:${imgPart.inlineData.mimeType};base64,${imgPart.inlineData.data}`;
+    } catch(e) { console.warn(model, e.message); }
   }
 
-  const blob = await res.blob();
-  if (!blob.type.startsWith('image/')) {
-    const text = await blob.text();
-    throw new Error('Görsel gelmedi: ' + text.substring(0, 100));
-  }
-
-  return await blobToDataUrl(blob);
+  throw new Error('Gemini görsel modeli çalışmadı. Gemini API key girdiniz mi? Konsolu kontrol edin.');
 }
 
 function blobToDataUrl(blob) {
