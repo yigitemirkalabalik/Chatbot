@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARCA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500;600&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html,body { height:100%; overflow:hidden; }
+
+:root {
+  --ink: #0f0e0d;
+  --ink2: #1e1c1a;
+  --ink3: #2d2b28;
+  --paper: #f5f0e8;
+  --paper2: #ede8dc;
+  --paper3: #e3ddd0;
+  --gold: #c9a84c;
+  --gold2: #e8c96a;
+  --rust: #c45c2e;
+  --sage: #5a7a5c;
+  --muted: #8a8070;
+  --muted2: #b0a898;
+  --mono: 'DM Mono', monospace;
+  --sans: 'DM Sans', sans-serif;
+  --serif: 'Playfair Display', serif;
+  --sidebar-w: 240px;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  grid-template-rows: 100vh;
+}
+
+/* ── NOISE TEXTURE ── */
+body::after {
+  content:'';
+  position:fixed; inset:0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events:none; z-index:9999;
+  opacity:.6;
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  background: var(--ink);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.sidebar::before {
+  content:'';
+  position:absolute; inset:0;
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent, transparent 20px,
+    rgba(201,168,76,0.03) 20px, rgba(201,168,76,0.03) 21px
+  );
+  pointer-events:none;
+}
+
+.sidebar-top {
+  padding: 28px 20px 20px;
+  border-bottom: 1px solid rgba(201,168,76,0.2);
+  position:relative; z-index:1;
+}
+
+.brand {
+  font-family: var(--serif);
+  font-size: 26px;
+  color: var(--gold);
+  letter-spacing: 2px;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.brand-sub {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: rgba(201,168,76,0.4);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+.new-chat-btn {
+  width: 100%;
+  margin-top: 16px;
+  background: transparent;
+  border: 1px solid rgba(201,168,76,0.3);
+  color: var(--gold);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 2px;
+  padding: 9px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all .2s;
+  position:relative; z-index:1;
+}
+.new-chat-btn:hover {
+  background: rgba(201,168,76,0.08);
+  border-color: var(--gold);
+}
+
+/* Chat history */
+.chat-history {
+  flex:1; overflow-y:auto; padding: 12px 8px;
+  position:relative; z-index:1;
+}
+.chat-history::-webkit-scrollbar { width:3px; }
+.chat-history::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.2); }
+
+.hist-item {
+  padding: 9px 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background .15s;
+  margin-bottom: 2px;
+}
+.hist-item:hover { background: rgba(201,168,76,0.07); }
+.hist-item.active { background: rgba(201,168,76,0.12); }
+.hist-item .h-title {
+  font-size: 12px;
+  color: rgba(245,240,232,0.7);
+  white-space: nowrap; overflow:hidden; text-overflow:ellipsis;
+  margin-bottom: 2px;
+}
+.hist-item .h-meta {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: rgba(201,168,76,0.35);
+}
+
+/* API keys section */
+.sidebar-keys {
+  padding: 14px 16px;
+  border-top: 1px solid rgba(201,168,76,0.15);
+  position:relative; z-index:1;
+}
+.key-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: rgba(201,168,76,0.4);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.key-status { font-size:9px; }
+.key-status.ok { color: var(--sage); }
+.key-status.err { color: var(--rust); }
+
+.key-input-wrap { margin-bottom: 10px; }
+.key-input {
+  width: 100%;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(201,168,76,0.2);
+  color: rgba(245,240,232,0.8);
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 7px 10px;
+  outline: none;
+  transition: border-color .2s;
+  border-radius: 2px;
+}
+.key-input:focus { border-color: rgba(201,168,76,0.5); }
+.key-input::placeholder { color: rgba(201,168,76,0.2); }
+
+.save-keys-btn {
+  width:100%;
+  background: var(--gold);
+  color: var(--ink);
+  border: none;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  padding: 8px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity .2s;
+  border-radius: 2px;
+}
+.save-keys-btn:hover { opacity: .85; }
+
+/* ── MAIN CHAT ── */
+.chat-main {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--paper);
+}
+
+/* Messages */
+.messages {
+  flex:1; overflow-y:auto;
+  padding: 32px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.messages::-webkit-scrollbar { width:5px; }
+.messages::-webkit-scrollbar-thumb { background: var(--paper3); border-radius:3px; }
+
+/* Empty state */
+.empty-state {
+  flex:1; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  gap: 16px; text-align:center;
+  padding: 40px;
+}
+.empty-state h2 {
+  font-family: var(--serif);
+  font-size: 42px;
+  color: var(--ink3);
+  letter-spacing: -1px;
+}
+.empty-state p {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 1px;
+  line-height: 2;
+}
+.suggestion-chips {
+  display:flex; flex-wrap:wrap; gap:8px;
+  justify-content:center; max-width:560px;
+  margin-top: 8px;
+}
+.s-chip {
+  background: var(--paper2);
+  border: 1px solid var(--paper3);
+  padding: 8px 16px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 100px;
+  transition: all .15s;
+}
+.s-chip:hover {
+  background: var(--ink);
+  color: var(--gold);
+  border-color: var(--ink);
+}
+
+/* Message bubbles */
+.msg-row {
+  display: flex;
+  gap: 14px;
+  padding: 14px 0;
+  animation: fadeUp .3s ease;
+  border-bottom: 1px solid transparent;
+}
+.msg-row:not(:last-child) {
+  border-bottom-color: var(--paper2);
+}
+@keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+
+.msg-row.user { flex-direction: row-reverse; }
+
+.avatar {
+  width:32px; height:32px; border-radius:50%;
+  display:grid; place-items:center;
+  flex-shrink:0; font-family:var(--mono); font-size:10px;
+  font-weight:500;
+}
+.avatar.ai {
+  background: var(--ink);
+  color: var(--gold);
+  border: 1.5px solid rgba(201,168,76,0.3);
+}
+.avatar.user {
+  background: var(--paper3);
+  color: var(--ink);
+  border: 1.5px solid var(--paper3);
+}
+
+.msg-content { max-width: 72%; display:flex; flex-direction:column; gap:8px; }
+.msg-row.user .msg-content { align-items:flex-end; }
+
+.bubble {
+  background: var(--paper2);
+  border: 1px solid var(--paper3);
+  padding: 12px 16px;
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--ink2);
+  border-radius: 2px 12px 12px 12px;
+}
+.msg-row.user .bubble {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink2);
+  border-radius: 12px 2px 12px 12px;
+}
+
+/* Image in chat */
+.chat-img {
+  max-width: 480px; width:100%;
+  border: 1px solid var(--paper3);
+  border-radius: 4px;
+  display:block;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.chat-img:hover { opacity:.92; }
+
+.img-actions {
+  display:flex; gap:8px; align-items:center;
+}
+.img-action-btn {
+  background: var(--paper2);
+  border: 1px solid var(--paper3);
+  padding: 5px 12px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 100px;
+  transition: all .15s;
+  text-decoration:none;
+  display:inline-block;
+}
+.img-action-btn:hover { background:var(--ink); color:var(--gold); border-color:var(--ink); }
+
+/* Uploaded ref image in user msg */
+.ref-img-thumb {
+  max-width: 180px;
+  border: 1px solid var(--paper3);
+  border-radius:4px;
+  opacity:.85;
+}
+
+/* Timestamp */
+.msg-time {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--muted2);
+  padding: 0 4px;
+}
+
+/* Thinking / loading */
+.thinking-dots {
+  display:flex; gap:4px; align-items:center; padding: 4px 0;
+}
+.thinking-dots span {
+  width:6px; height:6px; border-radius:50%;
+  background: var(--muted2);
+  animation: bounce .9s infinite;
+}
+.thinking-dots span:nth-child(2) { animation-delay:.15s; }
+.thinking-dots span:nth-child(3) { animation-delay:.3s; }
+@keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)} }
+
+/* Mode indicator */
+.mode-chip {
+  display:inline-flex; align-items:center; gap:5px;
+  background: rgba(201,168,76,0.1);
+  border: 1px solid rgba(201,168,76,0.25);
+  color: var(--gold);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  padding: 2px 8px;
+  border-radius: 100px;
+  text-transform: uppercase;
+}
+.mode-chip.img { background: rgba(90,122,92,0.1); border-color:rgba(90,122,92,0.3); color:var(--sage); }
+.mode-chip.err { background: rgba(196,92,46,0.1); border-color:rgba(196,92,46,0.3); color:var(--rust); }
+
+/* ── INPUT ── */
+.input-area {
+  border-top: 1px solid var(--paper3);
+  background: var(--paper);
+  padding: 16px 28px 20px;
+}
+
+/* Uploaded images preview */
+.uploads-preview {
+  display:flex; gap:8px; margin-bottom:10px;
+  flex-wrap:wrap;
+}
+.up-thumb-wrap {
+  position:relative;
+}
+.up-thumb {
+  width:52px; height:52px;
+  object-fit:cover;
+  border:1px solid var(--paper3);
+  border-radius:4px;
+}
+.up-rm {
+  position:absolute; top:-5px; right:-5px;
+  width:16px; height:16px;
+  background:var(--rust); color:#fff;
+  border:none; border-radius:50%;
+  font-size:9px; cursor:pointer;
+  display:grid; place-items:center;
+}
+
+.input-row {
+  display:flex; gap:10px; align-items:flex-end;
+}
+
+.input-box {
+  flex:1;
+  background: var(--paper2);
+  border: 1px solid var(--paper3);
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-family: var(--sans);
+  font-size: 14px;
+  color: var(--ink);
+  resize: none;
+  outline:none;
+  min-height: 48px;
+  max-height: 160px;
+  line-height: 1.5;
+  transition: border-color .2s;
+  overflow-y:auto;
+}
+.input-box:focus { border-color: var(--gold); }
+.input-box::placeholder { color: var(--muted2); }
+
+.input-btns {
+  display:flex; flex-direction:column; gap:6px;
+}
+
+.icon-btn {
+  width:44px; height:44px;
+  background: var(--paper2);
+  border: 1px solid var(--paper3);
+  border-radius: 10px;
+  display:grid; place-items:center;
+  cursor:pointer;
+  transition:all .15s;
+  color: var(--muted);
+}
+.icon-btn:hover { background:var(--ink); color:var(--gold); border-color:var(--ink); }
+.icon-btn.send {
+  background:var(--ink); color:var(--gold); border-color:var(--ink);
+}
+.icon-btn.send:hover { background:var(--ink2); }
+.icon-btn:disabled { opacity:.35; cursor:not-allowed; }
+
+.input-hint {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--muted2);
+  margin-top: 8px;
+  letter-spacing:.5px;
+}
+
+/* Image lightbox */
+.lightbox {
+  position:fixed; inset:0;
+  background:rgba(15,14,13,0.92);
+  z-index:1000;
+  display:none; place-items:center;
+}
+.lightbox.open { display:grid; }
+.lightbox img {
+  max-width:90vw; max-height:90vh;
+  object-fit:contain;
+  border:1px solid rgba(201,168,76,0.2);
+}
+.lightbox-close {
+  position:fixed; top:24px; right:28px;
+  background:none; border:none;
+  color:rgba(245,240,232,0.5);
+  font-size:24px; cursor:pointer;
+  font-family:var(--mono);
+}
+
+#fileInput { display:none; }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-top">
+    <div class="brand">ARCA</div>
+    <div class="brand-sub">Visual Intelligence</div>
+    <button class="new-chat-btn" onclick="newChat()">＋ Yeni Sohbet</button>
+  </div>
+
+  <div class="chat-history" id="chatHistory">
+    <div style="font-family:var(--mono);font-size:9px;color:rgba(201,168,76,0.2);padding:12px;text-align:center;letter-spacing:2px;">
+      GEÇMİŞ
+    </div>
+  </div>
+
+  <div class="sidebar-keys">
+    <div class="key-label">
+      Groq API
+      <span class="key-status" id="geminiStatus">—</span>
+    </div>
+    <div class="key-input-wrap">
+      <input class="key-input" type="password" id="geminiKey" placeholder="gsk_..."/>
+    </div>
+    <div class="key-label" style="margin-top:8px;">
+      Gemini API <span style="font-size:8px;opacity:.5">(görsel analiz)</span>
+      <span class="key-status" id="geminiStatus2">—</span>
+    </div>
+    <div class="key-input-wrap">
+      <input class="key-input" type="password" id="geminiKey2" placeholder="AIza... (opsiyonel)"/>
+    </div>
+
+    <div class="key-label">
+      Hugging Face Token
+      <span class="key-status" id="hfStatus">—</span>
+    </div>
+    <div class="key-input-wrap">
+      <input class="key-input" type="password" id="hfKey" placeholder="hf_..."/>
+    </div>
+    <div style="font-family:var(--mono);font-size:9px;color:rgba(201,168,76,0.2);margin-bottom:10px;line-height:1.8;">
+      huggingface.co → Settings<br>→ Access Tokens → New Token
+    </div>
+    <button class="save-keys-btn" onclick="saveKeys()">Kaydet</button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="chat-main">
+  <div class="messages" id="messages">
+    <div class="empty-state" id="emptyState">
+      <h2>Merhaba.</h2>
+      <p>Yazışalım, görsel üretelim, görselleri analiz edelim.<br>
+      Ne istersen sor — Türkçe ya da İngilizce.</p>
+      <div class="suggestion-chips">
+        <div class="s-chip" onclick="chip(this)">Bana karanlık bir şehir manzarası çiz</div>
+        <div class="s-chip" onclick="chip(this)">Bu görseli analiz et</div>
+        <div class="s-chip" onclick="chip(this)">Fütüristik bir araç tasarla</div>
+        <div class="s-chip" onclick="chip(this)">Gece görüşü kamera sistemi görseli</div>
+        <div class="s-chip" onclick="chip(this)">Bu tarzda yeni bir görsel üret</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="input-area">
+    <div class="uploads-preview" id="uploadsPreview"></div>
+    <div class="input-row">
+      <textarea class="input-box" id="inputBox"
+        placeholder="Bir şeyler yaz... (görsel için 'çiz', 'üret', 'oluştur' de)"
+        rows="1"
+        onkeydown="handleKey(event)"
+        oninput="autoResize(this)"></textarea>
+      <div class="input-btns">
+        <button class="icon-btn" title="Görsel yükle" onclick="document.getElementById('fileInput').click()">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <rect x="1" y="4" width="16" height="11" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
+            <circle cx="6" cy="9" r="2" stroke="currentColor" stroke-width="1.2"/>
+            <path d="M1 13 L6 8.5 L9 11 L12 8 L17 13" stroke="currentColor" stroke-width="1.2"/>
+          </svg>
+        </button>
+        <button class="icon-btn send" id="sendBtn" title="Gönder (Ctrl+Enter)" onclick="send()">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M3 9 L15 9 M11 5 L15 9 L11 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="input-hint">Ctrl+Enter gönder &nbsp;·&nbsp; Görsel yükleyip analiz veya referans olarak kullanabilirsin</div>
+  </div>
+</main>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="lightboxImg" src="" alt=""/>
+</div>
+
+<input type="file" id="fileInput" accept="image/*" multiple onchange="handleFiles(event)"/>
+
+<script>
+// ── STATE ──────────────────────────────────────────────────────
+let groqKey = '', geminiKey = '', hfKey = '';
+let uploadedImages = []; // {dataUrl, base64, mime, name}
+let sessions = JSON.parse(localStorage.getItem('arca_sessions') || '[]');
+let currentSessionId = null;
+let currentMessages = []; // {role, text, imageUrl, refImages, mode, time}
+let isBusy = false;
+
+// ── INIT ──────────────────────────────────────────────────────
+(function init() {
+  groqKey = localStorage.getItem('arca_groq') || '';
+  geminiKey = localStorage.getItem('arca_gemini2') || '';
+  hfKey = localStorage.getItem('arca_hf') || '';
+  if (groqKey) { document.getElementById('geminiKey').value = groqKey; setStatus('geminiStatus', true); }
+  if (geminiKey) { document.getElementById('geminiKey2').value = geminiKey; setStatus('geminiStatus2', true); }
+  if (hfKey) { document.getElementById('hfKey').value = hfKey; setStatus('hfStatus', true); }
+  renderHistory();
+})();
+
+// ── KEYS ──────────────────────────────────────────────────────
+function saveKeys() {
+  groqKey = document.getElementById('geminiKey').value.trim();
+  geminiKey = document.getElementById('geminiKey2').value.trim();
+  hfKey = document.getElementById('hfKey').value.trim();
+  localStorage.setItem('arca_groq', groqKey);
+  localStorage.setItem('arca_gemini2', geminiKey);
+  localStorage.setItem('arca_hf', hfKey);
+  setStatus('geminiStatus', !!groqKey);
+  setStatus('geminiStatus2', !!geminiKey);
+  setStatus('hfStatus', !!hfKey);
+}
+function setStatus(id, ok) {
+  const el = document.getElementById(id);
+  el.textContent = ok ? '✓' : '✗';
+  el.className = 'key-status ' + (ok ? 'ok' : 'err');
+}
+
+// ── HISTORY ───────────────────────────────────────────────────
+function renderHistory() {
+  const h = document.getElementById('chatHistory');
+  const existing = h.querySelector('[data-sessions]');
+  if (existing) existing.remove();
+  const wrap = document.createElement('div');
+  wrap.dataset.sessions = '1';
+  sessions.slice().reverse().forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'hist-item' + (s.id === currentSessionId ? ' active' : '');
+    el.innerHTML = `<div class="h-title">${s.title}</div><div class="h-meta">${s.count} mesaj · ${s.date}</div>`;
+    el.onclick = () => loadSession(s.id);
+    wrap.appendChild(el);
+  });
+  h.appendChild(wrap);
+}
+
+function newChat() {
+  currentSessionId = null;
+  currentMessages = [];
+  uploadedImages = [];
+  document.getElementById('uploadsPreview').innerHTML = '';
+  const msgs = document.getElementById('messages');
+  msgs.innerHTML = '';
+  msgs.appendChild(buildEmptyState());
+  renderHistory();
+}
+
+function loadSession(id) {
+  const s = sessions.find(x => x.id === id);
+  if (!s) return;
+  currentSessionId = id;
+  currentMessages = s.messages || [];
+  const msgs = document.getElementById('messages');
+  msgs.innerHTML = '';
+  currentMessages.forEach(m => renderMessage(m, false));
+  msgs.scrollTop = msgs.scrollHeight;
+  renderHistory();
+}
+
+function saveSession(firstText) {
+  if (!currentSessionId) {
+    currentSessionId = Date.now().toString();
+    sessions.push({
+      id: currentSessionId,
+      title: firstText.substring(0, 42),
+      date: new Date().toLocaleDateString('tr-TR'),
+      count: 0,
+      messages: []
+    });
+  }
+  const s = sessions.find(x => x.id === currentSessionId);
+  if (s) {
+    s.messages = currentMessages;
+    s.count = currentMessages.length;
+  }
+  // Limit storage: strip large base64 from saved messages to avoid localStorage overflow
+  const toSave = sessions.map(sess => ({
+    ...sess,
+    messages: (sess.messages || []).map(m => ({
+      ...m,
+      imageUrl: m.imageUrl ? '[img]' : undefined,
+      refImages: undefined // don't persist ref images
+    }))
+  }));
+  try { localStorage.setItem('arca_sessions', JSON.stringify(toSave)); } catch(e) {}
+  renderHistory();
+}
+
+// ── FILE UPLOAD ───────────────────────────────────────────────
+function handleFiles(e) {
+  Array.from(e.target.files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const dataUrl = ev.target.result;
+      const base64 = dataUrl.split(',')[1];
+      uploadedImages.push({ dataUrl, base64, mime: file.type, name: file.name });
+      renderUploadsPreview();
+    };
+    reader.readAsDataURL(file);
+  });
+  e.target.value = '';
+}
+
+function renderUploadsPreview() {
+  const wrap = document.getElementById('uploadsPreview');
+  wrap.innerHTML = '';
+  uploadedImages.forEach((img, i) => {
+    const w = document.createElement('div');
+    w.className = 'up-thumb-wrap';
+    w.innerHTML = `<img class="up-thumb" src="${img.dataUrl}" title="${img.name}"/>
+      <button class="up-rm" onclick="removeUpload(${i})">×</button>`;
+    wrap.appendChild(w);
+  });
+}
+function removeUpload(i) {
+  uploadedImages.splice(i, 1);
+  renderUploadsPreview();
+}
+
+// ── SEND ──────────────────────────────────────────────────────
+async function send() {
+  if (isBusy) return;
+  const box = document.getElementById('inputBox');
+  const text = box.value.trim();
+  if (!text && uploadedImages.length === 0) return;
+  if (!groqKey && !geminiKey) {
+    alert('Lütfen Groq API anahtarı girin (sol menü) → console.groq.com');
+    return;
+  }
+
+  box.value = '';
+  autoResize(box);
+  isBusy = true;
+  document.getElementById('sendBtn').disabled = true;
+
+  // Remove empty state
+  document.getElementById('emptyState')?.remove();
+
+  // User message
+  const userMsg = {
+    role: 'user',
+    text,
+    refImages: uploadedImages.map(i => ({ dataUrl: i.dataUrl, name: i.name })),
+    time: new Date().toISOString()
+  };
+  currentMessages.push(userMsg);
+  renderMessage(userMsg);
+
+  const refs = [...uploadedImages];
+  uploadedImages = [];
+  renderUploadsPreview();
+
+  saveSession(text || 'Görsel');
+
+  // Loading
+  const loadingEl = addThinking();
+
+  try {
+    // Decide: image generation or text/analysis?
+    const mode = detectMode(text, refs);
+    let aiMsg;
+
+    if (mode === 'generate') {
+      aiMsg = await doGenerate(text, refs);
+    } else {
+      aiMsg = await doChat(text, refs);
+    }
+
+    loadingEl.remove();
+    currentMessages.push(aiMsg);
+    renderMessage(aiMsg);
+    saveSession(text);
+
+  } catch(err) {
+    loadingEl.remove();
+    const errMsg = { role: 'ai', text: '⚠ ' + err.message, mode: 'error', time: new Date().toISOString() };
+    currentMessages.push(errMsg);
+    renderMessage(errMsg);
+  }
+
+  isBusy = false;
+  document.getElementById('sendBtn').disabled = false;
+}
+
+// ── INTENT DETECTION ──────────────────────────────────────────
+function detectMode(text, refs) {
+  const t = text.toLowerCase();
+  // If there are refs but prompt asks for analysis → chat mode
+  const analyzeKw = /analiz|incele|açıkla|ne var|ne görüyorsun|describe|explain|what is|identify/i;
+  if (analyzeKw.test(t)) return 'chat';
+
+  // Image generation keywords
+  const genKw = /çiz|üret|oluştur|yap|göster|resim|görsel|fotoğraf|illüstrasyon|draw|generate|create|make|image|photo|picture|render|design|illustrate|paint/i;
+  if (genKw.test(t)) return 'generate';
+
+  // If only images uploaded with vague text → analyze
+  if (refs.length > 0 && t.length < 40) return 'chat';
+
+  return 'chat';
+}
+
+// ── GENERATE (Imagen 4 — Gemini API) ─────────────────────────
+async function doGenerate(text, refs) {
+  if (!hfKey) throw new Error('Görsel üretmek için Hugging Face token gerekli. Sol menüden ekle → huggingface.co/settings/tokens');
+
+  // 1. Türkçe→İngilizce çevir ve prompt genişlet
+  const englishPrompt = await geminiTranslateAndEnhance(text, refs);
+
+  // 2. Imagen 4 ile üret
+  const imageDataUrl = await imagenGenerate(englishPrompt);
+
+  return {
+    role: 'ai',
+    mode: 'image',
+    text: null,
+    imageUrl: imageDataUrl,
+    promptUsed: englishPrompt,
+    time: new Date().toISOString()
+  };
+}
+
+async function geminiTranslateAndEnhance(text, refs) {
+  const hasTurkish = /[çğıöşüÇĞİÖŞÜ]/.test(text);
+  const instruction = hasTurkish
+    ? `Translate this Turkish image generation request to English and expand it into a detailed, vivid image generation prompt (2-3 sentences max). Return ONLY the prompt, nothing else:\n\n${text}`
+    : `Expand this into a detailed, vivid image generation prompt (2-3 sentences). Return ONLY the prompt:\n\n${text}`;
+
+  // Groq ile çevir (Gemini gerekmez)
+  if (groqKey) {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
+      body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'user', content: instruction }], max_tokens: 200 })
+    });
+    const d = await res.json();
+    if (!d.error) return d.choices?.[0]?.message?.content?.trim() || text;
+  }
+
+  // Groq yoksa Gemini dene
+  if (geminiKey) {
+    const parts = [{ text: instruction }];
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts }] })
+    });
+    const d = await res.json();
+    if (!d.error) return d.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || text;
+  }
+
+  // İkisi de yoksa direkt İngilizce gönder
+  return text;
+}
+
+async function imagenGenerate(prompt) {
+  if (!hfKey) throw new Error('Görsel üretmek için Hugging Face token gerekli. Sol menüden ekle → huggingface.co/settings/tokens');
+
+  // HF Inference Providers API — CORS destekli, ücretsiz
+  const res = await fetch('https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${hfKey}`,
+      'Content-Type': 'application/json',
+      'x-use-cache': 'false'
+    },
+    body: JSON.stringify({
+      inputs: prompt,
+      parameters: { width: 1024, height: 576, num_inference_steps: 4 }
+    })
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    let msg = `HF ${res.status}`;
+    try { const j = JSON.parse(text); msg = j.error || j.message || msg; } catch(e) {}
+    // 503 = model soğuk başlatılıyor
+    if (res.status === 503) throw new Error('Model yükleniyor, 30 saniye bekleyip tekrar dene.');
+    throw new Error('HF Hata: ' + msg);
+  }
+
+  const blob = await res.blob();
+  if (!blob.type.startsWith('image/')) {
+    const text = await blob.text();
+    throw new Error('Görsel gelmedi: ' + text.substring(0, 100));
+  }
+
+  return await blobToDataUrl(blob);
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+// ── CHAT (Groq) + ANALYSIS (Gemini varsa) ────────────────────
+async function doChat(text, refs) {
+  // Görsel analiz varsa ve Gemini key varsa → Gemini kullan
+  if (refs.length > 0 && refs[0].base64 && geminiKey) {
+    return await doChatGemini(text, refs);
+  }
+  // Sohbet → Groq
+  if (groqKey) {
+    return await doChatGroq(text);
+  }
+  // Groq yoksa Gemini dene
+  if (geminiKey) {
+    return await doChatGemini(text, refs);
+  }
+  throw new Error('Sohbet için Groq API anahtarı gerekli → console.groq.com (ücretsiz)');
+}
+
+async function doChatGroq(text) {
+  const history = currentMessages.slice(-10, -1);
+  const messages = [
+    { role: 'system', content: 'Sen ARCA adlı bir yapay zeka asistanısın. Llama 3.3 70B modeli üzerinde çalışıyorsun. Kendini hiçbir zaman Gemini, GPT veya başka bir model olarak tanıtma — her zaman sadece ARCA olduğunu söyle. Türkçe sorulara Türkçe, İngilizce sorulara İngilizce cevap ver. Samimi, doğal ve kısa cevaplar ver. Model numarası veya teknik detay sorulursa sadece şunu söyle: ARCA, Llama 3.3 70B üzerinde çalışan bir asistan.' }
+  ];
+  history.forEach(m => {
+    if (m.role === 'user' && m.text) messages.push({ role: 'user', content: m.text });
+    else if (m.role === 'ai' && m.text) messages.push({ role: 'assistant', content: m.text });
+  });
+  messages.push({ role: 'user', content: text });
+
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
+    body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages, max_tokens: 1024 })
+  });
+
+  const d = await res.json();
+  if (d.error) throw new Error('Groq: ' + d.error.message);
+  const reply = d.choices?.[0]?.message?.content?.trim();
+  if (!reply) throw new Error('Boş yanıt geldi.');
+  return { role: 'ai', text: reply, mode: 'text', time: new Date().toISOString() };
+}
+
+async function doChatGemini(text, refs) {
+  const parts = [];
+  refs.forEach(r => { if (r.base64) parts.push({ inlineData: { mimeType: r.mime, data: r.base64 } }); });
+  parts.push({ text: text || 'Bu görseli analiz et.' });
+
+  const history = currentMessages.slice(-7, -1);
+  const contents = [];
+  history.forEach(m => {
+    if (m.role === 'user' && m.text) contents.push({ role: 'user', parts: [{ text: m.text }] });
+    else if (m.role === 'ai' && m.text) contents.push({ role: 'model', parts: [{ text: m.text }] });
+  });
+  contents.push({ role: 'user', parts });
+
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contents, systemInstruction: { parts: [{ text: 'Sen ARCA adlı bir yapay zeka asistanısın. Kendini Gemini olarak tanıtma, her zaman ARCA olduğunu söyle. Türkçe sorulara Türkçe cevap ver.' }] } })
+  });
+
+  const d = await res.json();
+  if (d.error) throw new Error('Gemini: ' + d.error.message);
+  const reply = d.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+  if (!reply) throw new Error('Boş yanıt geldi.');
+  return { role: 'ai', text: reply, mode: 'text', time: new Date().toISOString() };
+}
+
+// ── RENDER ────────────────────────────────────────────────────
+function renderMessage(msg, scroll = true) {
+  const msgs = document.getElementById('messages');
+  const row = document.createElement('div');
+  row.className = 'msg-row ' + msg.role;
+
+  const time = msg.time ? new Date(msg.time).toLocaleTimeString('tr-TR', {hour:'2-digit',minute:'2-digit'}) : '';
+  const isUser = msg.role === 'user';
+
+  let inner = `<div class="avatar ${isUser?'user':'ai'}">${isUser?'SİZ':'A'}</div><div class="msg-content">`;
+
+  // Ref images (user side)
+  if (isUser && msg.refImages?.length > 0) {
+    msg.refImages.forEach(r => {
+      inner += `<img class="ref-img-thumb" src="${r.dataUrl}" title="${r.name}"/>`;
+    });
+  }
+
+  // Mode badge (AI side)
+  if (!isUser && msg.mode) {
+    const labels = { image:'◈ Görsel üretildi', text:'', error:'Hata' };
+    const label = labels[msg.mode] || '';
+    if (label) inner += `<span class="mode-chip ${msg.mode}">${label}</span>`;
+  }
+
+  // Text
+  if (msg.text) {
+    const formatted = msg.text
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n/g, '<br>');
+    inner += `<div class="bubble">${formatted}</div>`;
+  }
+
+  // Generated image
+  if (msg.imageUrl && msg.imageUrl !== '[img]') {
+    inner += `<img class="chat-img" src="${msg.imageUrl}" onclick="openLightbox('${msg.imageUrl}')" alt="üretilen görsel"/>`;
+    inner += `<div class="img-actions">
+      <a class="img-action-btn" href="${msg.imageUrl}" download="arca_${Date.now()}.png" target="_blank">⬇ İndir</a>
+      <button class="img-action-btn" onclick="reuseAsRef('${msg.imageUrl}')">↺ Referans yap</button>
+    </div>`;
+    if (msg.promptUsed) {
+      inner += `<div class="msg-time" style="font-size:10px;color:var(--muted2);">${msg.promptUsed.substring(0,80)}${msg.promptUsed.length>80?'…':''}</div>`;
+    }
+  }
+
+  inner += `<div class="msg-time">${time}</div>`;
+  inner += '</div>';
+
+  row.innerHTML = inner;
+  msgs.appendChild(row);
+  if (scroll) msgs.scrollTop = msgs.scrollHeight;
+}
+
+function addThinking() {
+  const msgs = document.getElementById('messages');
+  const row = document.createElement('div');
+  row.className = 'msg-row ai';
+  row.innerHTML = `<div class="avatar ai">A</div>
+    <div class="msg-content">
+      <div class="bubble" style="background:transparent;border-color:transparent;padding:8px 4px;">
+        <div class="thinking-dots"><span></span><span></span><span></span></div>
+      </div>
+    </div>`;
+  msgs.appendChild(row);
+  msgs.scrollTop = msgs.scrollHeight;
+  return row;
+}
+
+function buildEmptyState() {
+  const d = document.createElement('div');
+  d.className = 'empty-state';
+  d.id = 'emptyState';
+  d.innerHTML = `
+    <h2>Merhaba.</h2>
+    <p>Yazışalım, görsel üretelim, görselleri analiz edelim.<br>Ne istersen sor — Türkçe ya da İngilizce.</p>
+    <div class="suggestion-chips">
+      <div class="s-chip" onclick="chip(this)">Bana karanlık bir şehir manzarası çiz</div>
+      <div class="s-chip" onclick="chip(this)">Fütüristik bir araç tasarla</div>
+      <div class="s-chip" onclick="chip(this)">Gece görüşü kamera sistemi görseli</div>
+      <div class="s-chip" onclick="chip(this)">Bu tarzda yeni bir görsel üret</div>
+    </div>`;
+  return d;
+}
+
+// ── UTILS ─────────────────────────────────────────────────────
+function chip(el) {
+  document.getElementById('inputBox').value = el.textContent;
+  send();
+}
+
+function openLightbox(url) {
+  document.getElementById('lightboxImg').src = url;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+}
+
+function reuseAsRef(url) {
+  // Pollinations URL'sini direkt referans olarak ekle
+  // base64'e çevirmeye gerek yok — URL olarak saklayabiliriz
+  uploadedImages.push({ dataUrl: url, base64: null, mime: 'image/png', name: 'referans.png', isUrl: true });
+  renderUploadsPreview();
+}
+
+function handleKey(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); send(); }
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+}
+</script>
+</body>
+</html>
